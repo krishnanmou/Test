@@ -1,0 +1,1218 @@
+
+
+-----------------------------------
+package com.kjtm.controller;
+
+import java.util.List;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.kjtm.model.Employee;
+import com.kjtm.model.Status;
+import com.kjtm.services.DataServices;
+
+
+@RestController
+@RequestMapping("/employee")
+public class RestController {
+
+	@Autowired
+	DataServices dataServices;
+
+	static final Logger logger = Logger.getLogger(RestController.class);
+
+	@RequestMapping(value = "/create", method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody
+	Status addEmployee(@RequestBody Employee employee) {
+		try {
+			dataServices.addEntity(employee);
+			return new Status(1, "Employee added Successfully !");
+		} catch (Exception e) {
+			// e.printStackTrace();
+			return new Status(0, e.toString());
+		}
+
+	}
+
+	@RequestMapping(value = "/{id}", method = RequestMethod.GET)
+	public @ResponseBody
+	Employee getEmployee(@PathVariable("id") long id) {
+		Employee employee = null;
+		try {
+			employee = dataServices.getEntityById(id);
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return employee;
+	}
+
+	@RequestMapping(value = "/list", method = RequestMethod.GET)
+	public @ResponseBody
+	List<Employee> getEmployee() {
+
+		List<Employee> employeeList = null;
+		try {
+			employeeList = dataServices.getEntityList();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return employeeList;
+	}
+
+	@RequestMapping(value = "delete/{id}", method = RequestMethod.GET)
+	public @ResponseBody
+	Status deleteEmployee(@PathVariable("id") long id) {
+
+		try {
+			dataServices.deleteEntity(id);
+			return new Status(1, "Employee deleted Successfully !");
+		} catch (Exception e) {
+			return new Status(0, e.toString());
+		}
+
+	}
+}
+------------------------------------------------
+package com.kjtm.dao;
+
+import java.util.List;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.Transaction;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.kjtm.model.Employee;
+
+
+public class DataDaoImpl implements DataDao {
+
+	@Autowired
+	SessionFactory sessionFactory;
+
+	Session session = null;
+	Transaction tx = null;
+
+	
+	public boolean addEntity(Employee employee) throws Exception {
+
+		session = sessionFactory.openSession();
+		tx = session.beginTransaction();
+		session.save(employee);
+		tx.commit();
+		session.close();
+
+		return false;
+	}
+
+	
+	public Employee getEntityById(long id) throws Exception {
+		session = sessionFactory.openSession();
+		Employee employee = (Employee) session.load(Employee.class,
+				new Long(id));
+		tx = session.getTransaction();
+		session.beginTransaction();
+		tx.commit();
+		return employee;
+	}
+
+	@SuppressWarnings("unchecked")
+	
+	public List<Employee> getEntityList() throws Exception {
+		session = sessionFactory.openSession();
+		tx = session.beginTransaction();
+		List<Employee> employeeList = session.createCriteria(Employee.class)
+				.list();
+		tx.commit();
+		session.close();
+		return employeeList;
+	}
+	
+	
+	public boolean deleteEntity(long id)
+			throws Exception {
+		session = sessionFactory.openSession();
+		Object o = session.load(Employee.class, id);
+		tx = session.getTransaction();
+		session.beginTransaction();
+		session.delete(o);
+		tx.commit();
+		return false;
+	}
+}
+--------------------------------------
+package com.kjtm.model;
+
+public class Status {
+
+	private int code;
+	private String message;
+
+	public Status() {
+	}
+
+	public Status(int code, String message) {
+		this.code = code;
+		this.message = message;
+	}
+
+	public int getCode() {
+		return code;
+	}
+
+	public void setCode(int code) {
+		this.code = code;
+	}
+
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+}
+
+-----------------------------------------------
+package com.kjtm.model;
+
+import java.io.Serializable;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+import org.codehaus.jackson.annotate.JsonIgnoreProperties;
+
+@Entity
+@Table(name = "employee")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+public class Employee implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
+	@Id
+	@GeneratedValue
+	@Column(name = "id")
+	private long id;
+
+	@Column(name = "first_name")
+	private String firstName;
+
+	@Column(name = "last_name")
+	private String lastName;
+
+	@Column(name = "email")
+	private String email;
+
+	@Column(name = "phone")
+	private String phone;
+
+	public long getId() {
+		return id;
+	}
+
+	public void setId(long id) {
+		this.id = id;
+	}
+
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+}
+
+
+-----------------------------------------------
+package com.kjt.service;
+
+import java.util.GregorianCalendar;
+import java.util.List;
+
+import org.hibernate.Criteria;
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.criterion.Restrictions;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+
+import com.kjt.model.Admin;
+
+import com.kjt.model.Customer;
+
+import com.kjt.model.Parent;
+import com.kjt.model.Sales;
+
+import com.kjt.model.User;
+
+@Repository
+@Transactional
+public class ServiceImpl implements Service {
+	
+	boolean flag = false;
+
+	GregorianCalendar cal = new GregorianCalendar();
+
+	@Autowired
+	private SessionFactory sessionFactory;
+	
+
+	private Session session;
+	
+	/******************* User Related implementations Starts Here ******************/
+	
+	@SuppressWarnings("unchecked")
+	
+	public List<User> findAllUsers() {
+		
+		Query query=sessionFactory.getCurrentSession().createQuery("select p FROM User p");
+		return query.list();
+	}
+
+	@SuppressWarnings("finally")
+	
+	public boolean saveUser(User user) {
+		
+		
+		flag = false;
+		try {
+			if(user.getId() == null)
+			{
+				sessionFactory.getCurrentSession().save(user);
+				flag = true;
+			}
+			else
+			{
+				sessionFactory.getCurrentSession().merge(user);
+				sessionFactory.getCurrentSession().flush();
+				flag = true;
+			}
+			
+		} catch (Exception e) {
+			
+			flag = false;
+		}
+		finally
+		{
+			return flag;
+		}
+		
+	}
+	
+	
+	public boolean removeUser(int id) {
+		
+		return false;
+	}
+
+	@SuppressWarnings("finally")
+	
+	public User findUser(int id) {
+		
+		User user=null;
+		try {
+			
+			user = (User) sessionFactory.getCurrentSession().get(User.class, id);
+			
+		} catch (Exception e) {
+			
+		}
+		finally
+		{
+			return user;
+		}
+	}
+
+	@SuppressWarnings("finally")
+	
+	public User findUserByName(String userName) {
+		User user = null;
+		try {
+			// user = em.find(User.class, id);
+			user = (User) sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"SELECT p FROM User p WHERE p.username = '"
+									+ userName + "'").uniqueResult();
+		} catch (Exception e) {
+			// Log.setLogMessage(this.getClass().getName(),"find Exception : ",e.toString());
+
+		} finally {
+			return user;
+		}
+	}
+	
+	@SuppressWarnings("finally")
+	public boolean isValidUser(String username, String password) {
+		boolean result = false;
+		try {
+			/*System.out.println("Service Class : user name " + username
+					+ " password: " + password);*/
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select p FROM User p where p.username= :username and p.password = :password and p.status = 1");
+			query.setParameter("username", username);
+			query.setParameter("password", password);
+			//System.out.println(query.getQueryString());
+			// System.out.println(query.list().size());
+			User user = (User) query.list().get(0);
+			if (user != null) {
+				result = true;
+			}
+			//System.out.println("Valid User Result is " + result);
+		} catch (Exception e) {
+			//System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+
+	}
+
+	
+
+    /******************* User Related implementations Ends Here ******************/
+	
+	
+	/******************* Admin Related implementations Starts Here ******************/
+	
+	@SuppressWarnings("finally")
+	
+	public Admin findAdmin(int id) {
+		Admin admin = null;
+		try {
+			// user = em.find(User.class, id);
+			admin = (Admin) sessionFactory.getCurrentSession()
+					.get(Admin.class, id);
+		} catch (Exception e) {
+			// Log.setLogMessage(this.getClass().getName(),"find Exception : ",e.toString());
+
+		} finally {
+			return admin;
+		}
+	}
+
+	
+	
+	/******************* Admin Related implementations Ends Here ******************/
+	
+	
+	/******************* Staff Related implementations Starts Here ******************/
+	
+
+	
+	
+	/******************* Staff Related implementations Ends Here ******************/
+	
+	
+	
+	/******************* Admin Offers Related implementations Start Here ******************/
+	
+	
+	
+
+
+	/******************* Admin Offers Related implementations Ends Here ******************/
+	
+	/******************Admin Car Type Related Implementations Starts*/
+	
+	
+	
+	/***CarType End Here **/
+	
+	/***Money Package Starts Here **/
+	
+	
+	
+	/***Money Package End Here **/
+	/*****Customer Related Methods Start Here ****/
+	@SuppressWarnings("finally")
+	
+	public Customer findCustomer(int id) {
+		Customer cust = null;
+		try {
+			// user = em.find(User.class, id);
+			cust = (Customer) sessionFactory.getCurrentSession()
+					.get(Customer.class, id);
+		} catch (Exception e) {
+			// Log.setLogMessage(this.getClass().getName(),"find Exception : ",e.toString());
+
+		} finally {
+			return cust;
+		}
+	}
+	
+	
+	public Customer getByCustomerId(int id) {
+		return(Customer) sessionFactory.getCurrentSession().get(Customer.class, id);
+		
+	}
+
+	@SuppressWarnings("unchecked")
+	
+	public List<Customer> searchCustomer(String username) {
+		Criteria criteria =sessionFactory.getCurrentSession().createCriteria(Customer.class);
+		criteria.add(Restrictions.ilike("username", username+"%"));
+		return criteria.list();
+		
+	}
+
+	@SuppressWarnings("unchecked")
+	
+	public List<Customer> getAllCustomer() {
+		Criteria criteria = sessionFactory.getCurrentSession().createCriteria(Customer.class);
+		return criteria.list();
+	}
+
+	
+	public int saveCustomer(Customer customer) {
+		
+		return (Integer) sessionFactory.getCurrentSession().save(customer);
+	}
+
+	
+	public void updateCustomer(Customer customer) {
+		
+		sessionFactory.getCurrentSession().merge(customer);
+		
+	}
+
+	
+	public void deleteCustomer(int id) {
+		Customer customer = getByCustomerId(id);
+		sessionFactory.getCurrentSession().delete(customer);
+		
+	}
+
+	
+	
+	/*****Customer Related Methods End Here *****/
+	
+	/*****Staff Related Methods Start Here *****/
+	
+	
+	
+
+
+	
+	
+	
+	public boolean isValidCustomer(String userName) {
+		boolean result = false;
+		try {
+			/*System.out.println("Service Class : user name " + username
+					+ " password: " + password);*/
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select p FROM Customer p where p.username= :username");
+			query.setParameter("username", userName);
+			
+			//System.out.println(query.getQueryString());
+			// System.out.println(query.list().size());
+			Customer customer = (Customer) query.list().get(0);
+			if (customer != null) {
+				result = true;
+			}
+			//System.out.println("Valid User Result is " + result);
+		} catch (Exception e) {
+			//System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+
+	}
+
+	
+	
+	/*****Department Related Methods Ends Here ****/
+	
+	/************Booking Related Methods Starts Here ****/
+	
+	
+
+	
+	
+
+	public boolean saveParent(Parent parent) {
+		flag = false;
+		try {
+			if(parent.getId() == null)
+			{
+				sessionFactory.getCurrentSession().save(parent);
+				flag = true;
+			}
+			else
+			{
+				sessionFactory.getCurrentSession().merge(parent);
+				sessionFactory.getCurrentSession().flush();
+				flag = true;
+			}
+			
+		} catch (Exception e) {
+			
+			flag = false;
+		}
+		finally
+		{
+			return flag;
+		}
+		
+	}
+
+	public Long findMaxParentId(int parentid) {
+		Long result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select count(*) FROM Customer p WHERE p.parentid = "+ parentid);
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Long) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public List<Object[]> findAllParent() {
+		List<Object[]> customerList = null;
+		try {
+			customerList = sessionFactory
+					.getCurrentSession().createSQLQuery("select * from parent").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return customerList;
+	}
+
+	public Parent findParentId(int userid) {
+		Parent parent = null;
+		try {
+			// user = em.find(User.class, id);
+			parent = (Parent) sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"SELECT p.refparentid FROM Parent p WHERE p.customerid = '"
+									+ userid + "'").uniqueResult();
+		} catch (Exception e) {
+			// Log.setLogMessage(this.getClass().getName(),"find Exception : ",e.toString());
+
+		} finally {
+			return parent;
+		}
+	}
+
+	public Sales findSales(int id) {
+		return (Sales) sessionFactory.getCurrentSession().get(Sales.class, id);
+	}
+
+	public List<Sales> searchSales(String mobileno) {
+		Criteria criteria = sessionFactory.getCurrentSession().createCriteria(Sales.class);
+		criteria.add(Restrictions.ilike("mobileno", mobileno+"%"));
+		return criteria.list();
+	}
+	public List<Sales> getAllSales() {
+		Criteria criteria = sessionFactory.getCurrentSession().createCriteria(Sales.class);
+		return criteria.list();
+	}
+
+	public int saveSales(Sales sales) {
+		return (Integer) sessionFactory.getCurrentSession().save(sales);
+	}
+
+	public void updateSales(Sales sales) {
+		
+		sessionFactory.getCurrentSession().merge(sales);
+	}
+
+	public void deleteSales(int id) {
+		Sales sales = findSales(id);
+		sessionFactory.getCurrentSession().delete(sales);
+		
+	}
+
+	/*public String findTotal(String mobileno,String month) {
+		
+		
+		List<Sales> list = null;
+		try {
+			Query query = sessionFactory.getCurrentSession().createQuery(
+					"SELECT p.total FROM Sales p WHERE p.mobileno = '"
+									+ mobileno + "' and p.month = '"+ month + "'");
+			list = query.list();
+			//System.out.println("list value" +list);
+			System.out.println("list Total value" +list.get(0).getTotal());
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+
+		return list.toString();
+		
+
+	}*/
+	
+	
+	public Double findTotal(String mobileno,String month) {
+		Double result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select max(p.total) FROM Sales p WHERE p.mobileno = '"
+									+ mobileno + "' and p.month = '"+ month + "'");
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Double) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public Long findTotalCount(String mobileno, int month, int year) {
+		Long result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createSQLQuery(
+							"select count(*) FROM Sales WHERE mobileno='"
+									+ mobileno + "' and month='"
+									+ month + "' and year='"
+									+ year+ "'");
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Long) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public Long findMaxCustomer() {
+		Long result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select count(*) FROM Customer p ");
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Long) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public void updateAdmin(Admin admin) {
+		sessionFactory.getCurrentSession().merge(admin);
+		
+	}
+
+	 public List<Parent> findParentMemberId(int userid){
+		  Query query = sessionFactory.getCurrentSession().createSQLQuery(
+					"select * FROM Parent where refparentid = '"+ userid + "'");
+			return query.list();
+	  }
+
+	public List<Parent> findAllParents() {
+		Criteria criteria = sessionFactory.getCurrentSession().createCriteria(Parent.class);
+		return criteria.list();
+	}
+
+	public List<Object[]> findWeekTotal() {
+		
+			List<Object[]> weekList = null;
+			try {
+				weekList = sessionFactory
+						.getCurrentSession().createSQLQuery("SELECT year(subdate), week(subdate), sum(total) FROM sales GROUP BY year(subdate), week(subdate)").list();
+						
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			return weekList;
+		}
+
+	public List<Object[]> findMonthTotal() {
+		List<Object[]> monthList = null;
+		try {
+			monthList = sessionFactory
+					.getCurrentSession().createSQLQuery("SELECT year(subdate), month(subdate), sum(total) FROM sales GROUP BY year(subdate), month(subdate)").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return monthList;
+	}
+
+	 public Double findMaxSales() {
+		Double result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select sum(total) FROM Sales p ");
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Double) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public boolean isValidRefernceNumber(String refmobileno) {
+		boolean result = false;
+		try {
+			/*System.out.println("Service Class : user name " + username
+					+ " password: " + password);*/
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select p FROM Parent p where p.mobileno =" +refmobileno);
+			//query.setParameter("mobileno", refmobileno);
+			
+			//System.out.println(query.getQueryString());
+			// System.out.println(query.list().size());
+			Parent parent = (Parent) query.list().get(0);
+			if (parent != null) {
+				result = true;
+			}
+			//System.out.println("Valid User Result is " + result);
+		} catch (Exception e) {
+			//System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public Parent findParent(String mobileno) {
+		Parent parent = null;
+		try {
+			// user = em.find(User.class, id);
+			parent = (Parent) sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"SELECT p.id FROM Parent p WHERE p.mobileno = '"
+									+ mobileno + "'").uniqueResult();
+			System.out.println("query return" +parent);
+		} catch (Exception e) {
+			// Log.setLogMessage(this.getClass().getName(),"find Exception : ",e.toString());
+
+		} finally {
+			return parent;
+		}
+	}
+
+	public List<Object[]> findAllParentId(String mobileno) {
+		List<Object[]> customerList = null;
+		try {
+			customerList = sessionFactory
+					.getCurrentSession().createSQLQuery("select * from parent where mobileno = '"
+									+ mobileno + "'").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return customerList;
+	}
+
+	public boolean isValidMobileNo(String mobileno) {
+		boolean result = false;
+		try {
+			/*System.out.println("Service Class : user name " + username
+					+ " password: " + password);*/
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select p FROM Customer p where p.mobileno= :mobileno");
+			query.setParameter("mobileno", mobileno);
+			
+			//System.out.println(query.getQueryString());
+			// System.out.println(query.list().size());
+			Customer customer = (Customer) query.list().get(0);
+			if (customer != null) {
+				result = true;
+			}
+			//System.out.println("Valid User Result is " + result);
+		} catch (Exception e) {
+			//System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}	}
+
+	public List<Object[]> findAllCustomerId(String mobileno) {
+		List<Object[]> customerList = null;
+		try {
+			customerList = sessionFactory
+					.getCurrentSession().createSQLQuery("select * from customer where mobileno = '"
+									+ mobileno + "'").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return customerList;
+	}
+
+	public Double findTotal(String mobileno, int month) {
+		Double result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select max(p.total) FROM Sales p WHERE p.mobileno = '"
+									+ mobileno + "' and p.month = '"+ month + "'");
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Double) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public List<Object[]> findWeekCustomerTotal(String mobileno) {
+		List<Object[]> weekList = null;
+		try {
+			weekList = sessionFactory
+					.getCurrentSession().createSQLQuery("SELECT year(subdate), week(subdate), sum(total) FROM sales where mobileno='"+mobileno+"' GROUP BY year(subdate), week(subdate)").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return weekList;
+	}
+
+	public List<Object[]> findMonthCustomerTotal(String mobileno) {
+		List<Object[]> monthList = null;
+		try {
+			monthList = sessionFactory
+					.getCurrentSession().createSQLQuery("SELECT year(subdate), month(subdate), sum(total) FROM sales where mobileno='"+mobileno+"' GROUP BY year(subdate), month(subdate)").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return monthList;
+	}
+
+	public Parent findLevel(String mobileno) {
+		Parent parent = null;
+		try {
+			// user = em.find(User.class, id);
+			parent = (Parent) sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"SELECT p.level FROM Parent p WHERE p.mobileno = '"
+									+ mobileno + "'").uniqueResult();
+			System.out.println("query return" +parent);
+		} catch (Exception e) {
+			// Log.setLogMessage(this.getClass().getName(),"find Exception : ",e.toString());
+
+		} finally {
+			return parent;
+		}
+	}
+
+	public Double findMaxCustomerSales(String mobileno) {
+		Double result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select sum(total) FROM Sales p WHERE p.mobileno = '"
+									+ mobileno + "'");
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Double) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public List<Object[]> findAllCustomer() {
+		List<Object[]> customerList = null;
+		try {
+			customerList = sessionFactory
+					.getCurrentSession().createSQLQuery("select * from customer").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return customerList;
+	}
+
+	public Integer findRefParentId(int custid) {
+		Integer result = null;
+		try {
+			
+			Query query = sessionFactory
+					.getCurrentSession()
+					.createQuery(
+							"select refparentid FROM parent p WHERE p.customerid = '"
+									+ custid + "'");
+			System.out.println(query.uniqueResult());
+			// System.out.println(query.list().size());
+			//result = ((Integer) query.list().get(0)).intValue();
+			result = (Integer) query.uniqueResult();
+			
+		
+		} catch (Exception e) {
+			System.out.println(e.toString());
+
+		} finally {
+			return result;
+		}
+	}
+
+	public List<Customer> searchLevel(String parentid) {
+		Query query=sessionFactory.getCurrentSession().createQuery("SELECT p FROM Customer p WHERE p.parentid >= '"+ parentid + "'");
+		return query.list();
+	}
+
+	public List<Sales> searchSalesCommission(String mobileno) 
+	{
+		Query query=sessionFactory.getCurrentSession().createQuery("SELECT p FROM Sales p WHERE p.mobileno = '"+ mobileno + "'");
+		return query.list();
+	}
+
+	public List<Object[]> findAllCustomerTree(String mobileno) {
+		List<Object[]> customerList = null;
+		try {
+			customerList = sessionFactory
+					.getCurrentSession().createSQLQuery("select * from customer where refmobileno = '"
+									+ mobileno + "'").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return customerList;
+	}
+
+	public List<Object[]> findAllSales() {
+		List<Object[]> salesList = null;
+		try {
+			salesList = sessionFactory
+					.getCurrentSession().createSQLQuery("select * from sales").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return salesList;
+	}
+
+	public List<Object[]> findAllSalesTree(String mobileno) {
+		List<Object[]> salesTreeList = null;
+		try {
+			salesTreeList = sessionFactory
+					.getCurrentSession().createSQLQuery("select * from sales where mobileno = '"
+									+ mobileno + "'").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return salesTreeList;
+	}
+
+	public List<Object[]> findSalesDatewise(String fromdate, String todate) {
+		List<Object[]> salesDateList = null;
+		try {
+			salesDateList = sessionFactory
+					.getCurrentSession().createSQLQuery("SELECT level,count(level),amount,total FROM sales where subdate BETWEEN '"+fromdate+"' AND '"+todate+"' group by level").list();
+					
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return salesDateList;
+	}
+	
+	
+	/*************Booking Related Ends Here **************/
+	
+	
+	
+}
+
+--------------------------------------------------
+config.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.2.xsd
+  http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+  http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.2.xsd
+  http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd">
+
+	<context:component-scan base-package="com.kjtm.controller" />
+	<mvc:annotation-driven />
+
+	<bean id="dataSource"
+		class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver" />
+		<property name="url" value="jdbc:mysql://localhost:3306/employee_db" />
+		<property name="username" value="root" />
+		<property name="password" value="root" />
+	</bean>
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="annotatedClasses">
+			<list>
+				<value>com.kjtm.model.TicketBooking</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQL5Dialect</prop>
+				<prop key="hibernate.show_sql">${hibernate.show_sql}</prop>
+			</props>
+		</property>
+	</bean>
+
+	<bean id="txManager"
+		class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+
+	<bean id="persistenceExceptionTranslationPostProcessor"
+		class="org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor" />
+
+	<bean id="ticketBookingDao" class="com.kjtm.dao.TicketBookingDaoImpl"></bean>
+	<bean id="ticketBookingService" class="com.kjtm.services.TicketServiceImpl"></bean>
+</beans>
+
+----------------------------
+web.xml
+-------------
+
+<web-app xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee 
+	      http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+	version="2.5">
+
+	<display-name>Sample Spring Maven Project</display-name>
+
+	<servlet>
+		<servlet-name>mvc-dispatcher</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<init-param>
+			<param-name>contextConfigLocation</param-name>
+			<param-value>/WEB-INF/spring-config.xml</param-value>
+		</init-param>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+
+	<servlet-mapping>
+		<servlet-name>mvc-dispatcher</servlet-name>
+		<url-pattern>/</url-pattern>
+	</servlet-mapping>
+
+</web-app>
