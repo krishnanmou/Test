@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS `ticketbooking` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(100) NOT NULL,
+  `last_name` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `phone` int(15) NOT NULL,
+  `gender` varchar(10) NOT NULL,
+  `seatno` varchar(10) NOT NULL,
+  `bookingdate` date NOT NULL,
+  `bookedby` varchar(100) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=14 ;
